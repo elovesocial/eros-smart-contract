@@ -60,6 +60,11 @@ contract Owned {
         _;
     }
     
+    function giveKYC(address inv) onlyOwner public returns (bool success) {
+        investors[mapInvestors[inv]-1].kyced = true;
+        return true;
+    }
+    
     function isExistInvestor(address inv) public constant returns (bool exist) {
         return mapInvestors[inv] != 0;
     }
@@ -165,6 +170,11 @@ contract EROSToken is ERC20Interface, Owned {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transfer(address to, uint tokens) public returns (bool success) {
+        // transaction is in tradable period
+        require(now<tokenLockTime);
+        // sender is not founder, and must be kyc-ed
+        require(!founders[msg.sender] && investors[mapInvestors[msg.sender]-1].kyced);
+        // sender either is owner or recipient is not 0x0 address
         require(msg.sender == owner || to != 0x0);
         
         balances[msg.sender] = balances[msg.sender].sub(tokens);
@@ -198,6 +208,9 @@ contract EROSToken is ERC20Interface, Owned {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
+        
+        require(!founders[from] && investors[mapInvestors[from]-1].kyced);
+        
         balances[from] = balances[from].sub(tokens);
         allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
         balances[to] = balances[to].add(tokens);
