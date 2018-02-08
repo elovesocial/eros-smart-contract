@@ -258,9 +258,10 @@ contract EROSToken is ERC20Interface, Owned {
     function processRound(uint round) internal {
         // Token left for each round must be greater than 0
         require(roundTokenLeft[round]>0);
-        // calculate number of tokens can be bought, given number of ether from sender, with discount rate
+        // calculate number of tokens can be bought, given number of ether from sender, with discount rate accordingly
         var tokenCanBeBought = (msg.value*etherExRate*100).div(100-roundDiscount[round]);
         if (tokenCanBeBought<roundTokenLeft[round]) {
+            
             balances[owner] = balances[owner] - tokenCanBeBought;
             balances[msg.sender] = balances[msg.sender] + tokenCanBeBought;
             
@@ -300,15 +301,14 @@ contract EROSToken is ERC20Interface, Owned {
     }
     
     function burn() onlyOwner public {                       
-        require(now>crowdSaleRoundTwoEnd);
-        uint sumToBurn = preICORoundOneTotalToken + preICORoundTwoTotalToken + crowdSaleRoundOneTotalToken + crowdSaleRoundTwoTotalToken;
+        require(now>roundEnd[3]); // can be run after crowdsale round 2 ends
+        // sum to burn is the sum of tokens left for each rounds
+        uint sumToBurn = roundTokenLeft[0] + roundTokenLeft[1] + roundTokenLeft[2] + roundTokenLeft[3];
+        
         balances[owner] = balances[owner] - sumToBurn;
         _totalSupply = _totalSupply - sumToBurn;
         
-        preICORoundOneTotalToken = 0;
-        preICORoundTwoTotalToken = 0;
-        crowdSaleRoundOneTotalToken = 0;
-        crowdSaleRoundTwoTotalToken = 0;
+        roundTokenLeft[0] = roundTokenLeft[1] = roundTokenLeft[2] = roundTokenLeft[3] = 0;
     }
 
     // ------------------------------------------------------------------------
