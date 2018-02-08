@@ -34,13 +34,21 @@ contract ApproveAndCallFallBack {
 // Owned contract
 // ----------------------------------------------------------------------------
 contract Owned {
+    
+    struct Investor {
+        address sender;
+        uint amount;
+        bool kyced;
+    }
+    
     address public owner;
     address public newOwner;
     
-    mapping(address => bool) public investors;
+    Investor[] public investors;
+    
+    mapping(address => uint) public mapInvestors;
     mapping(address => bool) public founders;
-    mapping(address => bool) public kyced;
-
+    
     event OwnershipTransferred(address indexed _from, address indexed _to);
 
     function Owned() public {
@@ -53,19 +61,7 @@ contract Owned {
     }
     
     function isExistInvestor(address inv) public constant returns (bool exist) {
-        return investors[inv];
-    }
-    
-    function removeInvestor(address addrInv) onlyOwner public returns (bool success) {
-        require(investors[addrInv]);
-        investors[addrInv] = false;
-        return true;
-    }
-    
-    function addInvestor(address addrInv) onlyOwner public returns (bool success) {
-        require(!investors[addrInv]);
-        investors[addrInv] = true;
-        return true;
+        return mapInvestors[inv] != 0;
     }
     
     function isExistFounder(address _founder) public constant returns (bool exist) {
@@ -120,20 +116,8 @@ contract EROSToken is ERC20Interface, Owned {
     uint[4] roundTokenLeft;
     uint[4] roundDiscount;
     
-    uint preICORoundOneEnd;
-    uint preICORoundOneTotalToken;
-    uint preICORoundOneDiscountRate;
-    uint preICORoundTwoEnd;
-    uint preICORoundTwoTotalToken;
-    uint preICORoundTwoDiscountRate;
-    uint crowdSaleRoundOneEnd;
-    uint crowdSaleRoundOneTotalToken;
-    uint crowdSaleRoundOneDiscountRate;
-    uint crowdSaleRoundTwoEnd;
-    uint crowdSaleRoundTwoTotalToken;
-    uint crowdSaleRoundTwoDiscountRate;
-    
     uint tokenLockTime;
+    bool icoEnded = false;
     
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
@@ -154,19 +138,6 @@ contract EROSToken is ERC20Interface, Owned {
         roundEnd = [1519862400, 1521158400, 1523836800, 1525132800];
         roundTokenLeft = [10000000, 10000000, 30000000, 30000000];
         roundDiscount = [40, 30, 10, 0];
-        
-        preICORoundOneEnd       = 1519862400;   // 2018/03/01
-        preICORoundOneTotalToken = 10000000;    // 10M EROS
-        preICORoundOneDiscountRate = 40;        // 40%
-        preICORoundTwoEnd       = 1521158400;   // 2018/03/16
-        preICORoundTwoTotalToken = 10000000;    // 10M EROS
-        preICORoundTwoDiscountRate = 30;        // 30%
-        crowdSaleRoundOneEnd    = 1523836800;   // 2018/04/16
-        crowdSaleRoundOneTotalToken = 30000000; // 30M EROS
-        crowdSaleRoundOneDiscountRate = 10;     // 10%
-        crowdSaleRoundTwoEnd    = 1525132800;   // 2018/05/01
-        crowdSaleRoundTwoTotalToken = 30000000; // 30M EROS
-        crowdSaleRoundTwoDiscountRate = 0;      // 0%
         
         tokenLockTime = 1572566400;     // 2019/11/01 after 18 months
         
@@ -266,11 +237,27 @@ contract EROSToken is ERC20Interface, Owned {
             balances[msg.sender] = balances[msg.sender] + tokenCanBeBought;
             
             roundTokenLeft[round] = roundTokenLeft[round]-tokenCanBeBought;
+            
+            if (mapInvestors[msg.sender] > 0) {
+                // if investors already existed, add amount to the invested sum
+                investors[mapInvestors[msg.sender]-1].amount += msg.value;
+            } else {
+                uint ind = investors.push(Investor(msg.sender, msg.value, false));                
+                mapInvestors[msg.sender] = ind;
+            }
         } else {
             var neededEtherToBuy = (roundTokenLeft[round]*(100-roundDiscount[round])).div(etherExRate*100);
             balances[owner] = balances[owner] - roundTokenLeft[round];
             balances[msg.sender] = balances[msg.sender] + roundTokenLeft[round];
             roundTokenLeft[round] = 0;
+            
+            if (mapInvestors[msg.sender] > 0) {
+                // if investors already existed, add amount to the invested sum
+                investors[mapInvestors[msg.sender]-1].amount += neededEtherToBuy;
+            } else {
+                uint index = investors.push(Investor(msg.sender, neededEtherToBuy, false));  
+                mapInvestors[msg.sender] = index;
+            }
             
             // send back ether to sender 
             msg.sender.transfer(msg.value-neededEtherToBuy);
@@ -278,25 +265,39 @@ contract EROSToken is ERC20Interface, Owned {
     }
 
     // ------------------------------------------------------------------------
-    // Accept ETH
+    // Accept ETH for this crowdsale
     // ------------------------------------------------------------------------
     function () public payable {
+        require(!icoEnded);
         uint currentTime = now;
-        require (currentTime>icoStartDate && currentTime<crowdSaleRoundTwoEnd);
+        require (currentTime>icoStartDate);
         require (msg.value>= minInvest && msg.value<=maxInvest);
         
-        if (currentTime<preICORoundOneEnd) {
+        if (currentTime<roundEnd[0]) {
             processRound(0);
-        } else if (currentTime<preICORoundTwoEnd) {
+        } else if (currentTime<roundEnd[1]) {
             processRound(1);
-        } else if (currentTime<crowdSaleRoundOneEnd) {
+        } else if (currentTime<roundEnd[2]) {
             processRound(2);
-        } else {
+        } else if (currentTime<roundEnd[3]) {
             processRound(3);
+        } else {
+            // crowdsale ends, check success conditions
+            // run once
+            if (this.balance<softcap) {
+                // time to send back funds to investors
+                for(uint i = 0; i<investors.length; i++) {
+                    investors[i].sender.transfer(investors[i].amount);
+                }
+                // give back ETH to sender
+                msg.sender.transfer(msg.value);
+            }
+            icoEnded = true;
         }
     }
     
-    function withdrawEtherToOwner() onlyOwner public {                       
+    function withdrawEtherToOwner() onlyOwner public {   
+        require(now>roundEnd[3] && this.balance>softcap);
         owner.transfer(this.balance);
     }
     
