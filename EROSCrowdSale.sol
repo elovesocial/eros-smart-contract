@@ -302,9 +302,17 @@ contract EROSToken is ERC20Interface, Owned {
                 for(uint i = 0; i<investors.length; i++) {
                     investors[i].sender.transfer(investors[i].amount);
                 }
-                // give back ETH to sender
-                msg.sender.transfer(msg.value);
+            } else {
+                // burn un-sold tokens
+                uint sumToBurn = roundTokenLeft[0] + roundTokenLeft[1] + roundTokenLeft[2] + roundTokenLeft[3];
+                balances[owner] = balances[owner] - sumToBurn;
+                _totalSupply = _totalSupply - sumToBurn;
+                
+                roundTokenLeft[0] = roundTokenLeft[1] = roundTokenLeft[2] = roundTokenLeft[3] = 0;
             }
+            
+            // give back ETH to sender
+            msg.sender.transfer(msg.value);
             icoEnded = true;
         }
     }
@@ -312,17 +320,6 @@ contract EROSToken is ERC20Interface, Owned {
     function withdrawEtherToOwner() onlyOwner public {   
         require(now>roundEnd[3] && this.balance>softcap);
         owner.transfer(this.balance);
-    }
-    
-    function burn() onlyOwner public {                       
-        require(now>roundEnd[3]); // can be run after crowdsale round 2 ends
-        // sum to burn is the sum of tokens left for each rounds
-        uint sumToBurn = roundTokenLeft[0] + roundTokenLeft[1] + roundTokenLeft[2] + roundTokenLeft[3];
-        
-        balances[owner] = balances[owner] - sumToBurn;
-        _totalSupply = _totalSupply - sumToBurn;
-        
-        roundTokenLeft[0] = roundTokenLeft[1] = roundTokenLeft[2] = roundTokenLeft[3] = 0;
     }
 
     // ------------------------------------------------------------------------
