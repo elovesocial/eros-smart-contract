@@ -117,6 +117,8 @@ contract EROSToken is ERC20Interface, Owned {
 
     uint icoStartDate;
     
+    uint backDateToTest = 3600*24*6;
+    
     uint[4] roundEnd;
     uint[4] roundTokenLeft;
     uint[4] roundDiscount;
@@ -127,7 +129,7 @@ contract EROSToken is ERC20Interface, Owned {
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
 
-    uint etherExRate = 2000;
+    uint etherExRate = 2000000;
 
     // ------------------------------------------------------------------------
     // Constructor
@@ -138,10 +140,10 @@ contract EROSToken is ERC20Interface, Owned {
         decimals = 2;
         _totalSupply = 200000000 * 10**uint(decimals); // 200.000.000 tokens
         
-        icoStartDate            = 1518480000;   // 2018/02/13
+        icoStartDate            = 1518480000 - backDateToTest;   // 2018/02/13
         
-        roundEnd = [1519862400, 1521158400, 1523836800, 1525132800];
-        roundTokenLeft = [10000000, 10000000, 30000000, 30000000];
+        roundEnd = [1519862400 - backDateToTest, 1521158400-backDateToTest, 1523836800-backDateToTest, 1525132800-backDateToTest];
+        roundTokenLeft = [1000000000, 1000000000, 3000000000, 3000000000];
         roundDiscount = [40, 30, 10, 0];
         
         tokenLockTime = 1572566400;     // 2019/11/01 after 18 months
@@ -149,12 +151,16 @@ contract EROSToken is ERC20Interface, Owned {
         balances[owner] = _totalSupply;
         Transfer(address(0), owner, _totalSupply);
     }
+    
+    function roundLeft(uint round) public constant returns (uint) {
+        return roundTokenLeft[round];
+    }
 
     // ------------------------------------------------------------------------
     // Total supply
     // ------------------------------------------------------------------------
     function totalSupply() public constant returns (uint) {
-        return _totalSupply  - balances[address(0)];
+        return _totalSupply - balances[address(0)];
     }
 
     // ------------------------------------------------------------------------
@@ -243,7 +249,7 @@ contract EROSToken is ERC20Interface, Owned {
         // Token left for each round must be greater than 0
         require(roundTokenLeft[round]>0);
         // calculate number of tokens can be bought, given number of ether from sender, with discount rate accordingly
-        var tokenCanBeBought = (msg.value*etherExRate*100).div(100-roundDiscount[round]);
+        var tokenCanBeBought = (10**uint(decimals)*msg.value*etherExRate*100).div(10**18*(100-roundDiscount[round]));
         if (tokenCanBeBought<roundTokenLeft[round]) {
             
             balances[owner] = balances[owner] - tokenCanBeBought;
@@ -259,7 +265,7 @@ contract EROSToken is ERC20Interface, Owned {
                 mapInvestors[msg.sender] = ind;
             }
         } else {
-            var neededEtherToBuy = (roundTokenLeft[round]*(100-roundDiscount[round])).div(etherExRate*100);
+            var neededEtherToBuy = (10**18*roundTokenLeft[round]*(100-roundDiscount[round])).div(10**uint(decimals)*etherExRate*100);
             balances[owner] = balances[owner] - roundTokenLeft[round];
             balances[msg.sender] = balances[msg.sender] + roundTokenLeft[round];
             roundTokenLeft[round] = 0;
