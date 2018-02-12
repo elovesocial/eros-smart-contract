@@ -3,8 +3,8 @@ pragma solidity ^0.4.18;
 // ----------------------------------------------------------------------------
 // EROS token
 //
-// Symbol      : eROS
-// Name        : eLOVE Token
+// Symbol      : ELOVE
+// Name        : ELOVE Token for eLOVE Social Network
 // Total supply: 200,000,000
 // Decimals    : 2
 
@@ -101,7 +101,7 @@ contract Owned {
 // ERC20 Token, with the addition of symbol, name and decimals and an
 // initial fixed supply
 // ----------------------------------------------------------------------------
-contract EROSToken is ERC20Interface, Owned {
+contract ELOVEToken is ERC20Interface, Owned {
     using SafeMath for uint;
 
     string public symbol;
@@ -117,8 +117,6 @@ contract EROSToken is ERC20Interface, Owned {
 
     uint icoStartDate;
     
-    uint backDateToTest = 3600*24*6;
-    
     uint[4] roundEnd;
     uint[4] roundTokenLeft;
     uint[4] roundDiscount;
@@ -129,7 +127,7 @@ contract EROSToken is ERC20Interface, Owned {
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
 
-    uint etherExRate = 2000000;
+    uint etherExRate = 2000;
 
     // ------------------------------------------------------------------------
     // Constructor
@@ -140,9 +138,9 @@ contract EROSToken is ERC20Interface, Owned {
         decimals = 2;
         _totalSupply = 200000000 * 10**uint(decimals); // 200.000.000 tokens
         
-        icoStartDate            = 1518480000 - backDateToTest;   // 2018/02/13
+        icoStartDate            = 1518566401;   // 2018/02/14 00:00:01 AM
         
-        roundEnd = [1519862400 - backDateToTest, 1521158400-backDateToTest, 1523836800-backDateToTest, 1525132800-backDateToTest];
+        roundEnd = [1519862400, 1521158400, 1523836800, 1525132800];
         roundTokenLeft = [1000000000, 1000000000, 3000000000, 3000000000];
         roundDiscount = [40, 30, 10, 0];
         
@@ -154,6 +152,25 @@ contract EROSToken is ERC20Interface, Owned {
     
     function roundLeft(uint round) public constant returns (uint) {
         return roundTokenLeft[round];
+    }
+    
+    function setRoundEnd(uint round, uint newTime) onlyOwner public {
+        require(now<newTime);
+        if (round>0) {
+            require(newTime>roundEnd[round-1]);
+        } else {
+            require(newTime<roundEnd[1]);
+        }
+        roundEnd[round] = newTime;
+    }
+    
+    function setEthExRate(uint newExRate) onlyOwner public {
+        etherExRate = newExRate;
+    }
+    
+    function setLockTime(uint newLockTime) onlyOwner public {
+        require(now<newLockTime);
+        tokenLockTime = newLockTime;
     }
 
     // ------------------------------------------------------------------------
@@ -176,6 +193,7 @@ contract EROSToken is ERC20Interface, Owned {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transfer(address to, uint tokens) public returns (bool success) {
+        require(icoEnded);
         // transaction is in tradable period
         require(now<tokenLockTime);
         // sender is not founder, and must be kyc-ed
@@ -214,7 +232,6 @@ contract EROSToken is ERC20Interface, Owned {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
-        
         require(!founders[from] && investors[mapInvestors[from]-1].kyced);
         
         balances[from] = balances[from].sub(tokens);
@@ -223,7 +240,6 @@ contract EROSToken is ERC20Interface, Owned {
         Transfer(from, to, tokens);
         return true;
     }
-
 
     // ------------------------------------------------------------------------
     // Returns the amount of tokens approved by the owner that can be
@@ -251,10 +267,8 @@ contract EROSToken is ERC20Interface, Owned {
         // calculate number of tokens can be bought, given number of ether from sender, with discount rate accordingly
         var tokenCanBeBought = (10**uint(decimals)*msg.value*etherExRate*100).div(10**18*(100-roundDiscount[round]));
         if (tokenCanBeBought<roundTokenLeft[round]) {
-            
             balances[owner] = balances[owner] - tokenCanBeBought;
             balances[msg.sender] = balances[msg.sender] + tokenCanBeBought;
-            
             roundTokenLeft[round] = roundTokenLeft[round]-tokenCanBeBought;
             
             if (mapInvestors[msg.sender] > 0) {
