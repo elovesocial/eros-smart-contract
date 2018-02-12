@@ -23,16 +23,13 @@ contract ERC20Interface {
 
 // ----------------------------------------------------------------------------
 // Contract function to receive approval and execute function in one call
-//
 // Borrowed from MiniMeToken
-// ----------------------------------------------------------------------------
 contract ApproveAndCallFallBack {
     function receiveApproval(address from, uint256 tokens, address token, bytes data) public;
 }
 
 // ----------------------------------------------------------------------------
 // Owned contract
-// ----------------------------------------------------------------------------
 contract Owned {
     
     struct Investor {
@@ -44,6 +41,7 @@ contract Owned {
     address public owner;
     address public newOwner;
     
+    // List of investors with invested amount in ETH
     Investor[] public investors;
     
     mapping(address => uint) public mapInvestors;
@@ -60,8 +58,10 @@ contract Owned {
         _;
     }
     
-    function giveKYC(address inv) onlyOwner public returns (bool success) {
-        investors[mapInvestors[inv]-1].kyced = true;
+    // Give KYC status, so token can be traded by this wallet
+    function changeKYCStatus(address inv, bool kycStatus) onlyOwner public returns (bool success) {
+        require(kycStatus == !investors[mapInvestors[inv]-1].kyced);
+        investors[mapInvestors[inv]-1].kyced = kycStatus;
         return true;
     }
     
@@ -371,4 +371,3 @@ library SafeMath {
         c = a / b;
     }
 }
-
