@@ -168,14 +168,9 @@ contract ELOVEToken is ERC20Interface, Owned {
         balances[owner] = _totalSupply;
         Transfer(address(0), owner, _totalSupply);
     }
-    
-    // Token left for each round
-    function roundLeft(uint round) public constant returns (uint) {
-        return roundTokenLeft[round];
-    }
-    
+
     // 
-    function setRoundEnd(uint round, uint newTime) onlyOwner public {
+    function setRoundEnd(uint round, uint newTime) onlyOwner public returns (bool success)  {
         require(now<newTime);
         if (round>0) {
             require(newTime>roundEnd[round-1]);
@@ -183,15 +178,18 @@ contract ELOVEToken is ERC20Interface, Owned {
             require(newTime<roundEnd[1]);
         }
         roundEnd[round] = newTime;
+        return true;
     }
     
-    function setEthExRate(uint newExRate) onlyOwner public {
+    function setEthExRate(uint newExRate) onlyOwner public returns (bool success) {
         etherExRate = newExRate;
+        return true;
     }
     
-    function setLockTime(uint newLockTime) onlyOwner public {
+    function setLockTime(uint newLockTime) onlyOwner public returns (bool success) {
         require(now<newLockTime);
         tokenLockTime = newLockTime;
+        return true;
     }
 
     // ------------------------------------------------------------------------
