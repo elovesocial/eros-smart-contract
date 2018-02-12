@@ -40,6 +40,9 @@ contract Owned {
         bool kyced;
     }
     
+    // version of this smart contract
+    string public version = "1.0";
+    
     address public owner;
     address public newOwner;
     
@@ -128,13 +131,13 @@ contract ELOVEToken is ERC20Interface, Owned {
     uint softcap = 5000 ether;
     uint hardcap = 40000 ether;
 
-    uint icoStartDate;
+    uint public icoStartDate;
     
-    uint[4] roundEnd;
-    uint[4] roundTokenLeft;
-    uint[4] roundDiscount;
+    uint[4] public roundEnd;
+    uint[4] public roundTokenLeft;
+    uint[4] public roundDiscount;
     
-    uint tokenLockTime;
+    uint public tokenLockTime;
     bool icoEnded = false;
     
     mapping(address => uint) balances;
@@ -183,6 +186,11 @@ contract ELOVEToken is ERC20Interface, Owned {
     
     function setEthExRate(uint newExRate) onlyOwner public returns (bool success) {
         etherExRate = newExRate;
+        return true;
+    }
+    
+    function setICOStartTime(uint newTime) onlyOwner public returns (bool success) {
+        icoStartDate = newTime;
         return true;
     }
     
