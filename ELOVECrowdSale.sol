@@ -65,6 +65,12 @@ contract Owned {
         return true;
     }
     
+    // Give KYC status in batch
+    // investor separated by ';'
+    function changeKYCStatusInBatch(string invs, bool kycStatus) onlyOwner public {
+        //string[] storage listInvestors = invs.split(";");
+    }
+    
     function isExistInvestor(address inv) public constant returns (bool exist) {
         return mapInvestors[inv] != 0;
     }
@@ -103,6 +109,7 @@ contract Owned {
 // ----------------------------------------------------------------------------
 contract ELOVEToken is ERC20Interface, Owned {
     using SafeMath for uint;
+    using Strings for string;
 
     string public symbol;
     string public name;
@@ -132,7 +139,7 @@ contract ELOVEToken is ERC20Interface, Owned {
     // ------------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------------
-    function EROSToken(string tName, string tSymbol) public {
+    function ELOVEToken(string tName, string tSymbol) public {
         symbol = tSymbol;
         name = tName;
         decimals = 2;
@@ -140,20 +147,28 @@ contract ELOVEToken is ERC20Interface, Owned {
         
         icoStartDate            = 1518566401;   // 2018/02/14 00:00:01 AM
         
+        // Ending time for each round
+        // pre-ICO round 1 : ends 28/02/2018, 10M tokens limit, 40% discount
+        // pre-ICO round 2 : ends 15/03/2018, 10M tokens limit, 30% discount
+        // crowdsale round 1 : ends 15/04/2018, 30M tokens limit, 10% discount
+        // crowdsale round 2 : ends 30/04/2018, 30M tokens limit, 0% discount
         roundEnd = [1519862400, 1521158400, 1523836800, 1525132800];
         roundTokenLeft = [1000000000, 1000000000, 3000000000, 3000000000];
         roundDiscount = [40, 30, 10, 0];
         
+        // Time to lock all ERC20 transfer 
         tokenLockTime = 1572566400;     // 2019/11/01 after 18 months
         
         balances[owner] = _totalSupply;
         Transfer(address(0), owner, _totalSupply);
     }
     
+    // Token left for each round
     function roundLeft(uint round) public constant returns (uint) {
         return roundTokenLeft[round];
     }
     
+    // 
     function setRoundEnd(uint round, uint newTime) onlyOwner public {
         require(now<newTime);
         if (round>0) {
@@ -371,3 +386,217 @@ library SafeMath {
         c = a / b;
     }
 }
+
+library Strings {
+
+    /**
+     * Concat (High gas cost)
+     * 
+     * Appends two strings together and returns a new value
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *              otherwise this is the string which will be the concatenated
+     *              prefix
+     * @param _value The value to be the concatenated suffix
+     * @return string The resulting string from combinging the base and value
+     */
+    function concat(string _base, string _value) pure internal returns (string) {
+        bytes memory _baseBytes = bytes(_base);
+        bytes memory _valueBytes = bytes(_value);
+
+        assert(_valueBytes.length > 0);
+
+        string memory _tmpValue = new string(_baseBytes.length + 
+            _valueBytes.length);
+        bytes memory _newValue = bytes(_tmpValue);
+
+        uint i;
+        uint j;
+
+        for(i = 0; i < _baseBytes.length; i++) {
+            _newValue[j++] = _baseBytes[i];
+        }
+
+        for(i = 0; i<_valueBytes.length; i++) {
+            _newValue[j++] = _valueBytes[i];
+        }
+
+        return string(_newValue);
+    }
+
+    /**
+     * Index Of
+     *
+     * Locates and returns the position of a character within a string
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *              otherwise this is the string acting as the haystack to be
+     *              searched
+     * @param _value The needle to search for, at present this is currently
+     *               limited to one character
+     * @return int The position of the needle starting from 0 and returning -1
+     *             in the case of no matches found
+     */
+    function indexOf(string _base, string _value) pure internal returns (int) {
+        return _indexOf(_base, _value, 0);
+    }
+
+    /**
+     * Index Of
+     *
+     * Locates and returns the position of a character within a string starting
+     * from a defined offset
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *              otherwise this is the string acting as the haystack to be
+     *              searched
+     * @param _value The needle to search for, at present this is currently
+     *               limited to one character
+     * @param _offset The starting point to start searching from which can start
+     *                from 0, but must not exceed the length of the string
+     * @return int The position of the needle starting from 0 and returning -1
+     *             in the case of no matches found
+     */
+    function _indexOf(string _base, string _value, uint _offset) pure internal returns (int) {
+        bytes memory _baseBytes = bytes(_base);
+        bytes memory _valueBytes = bytes(_value);
+
+        assert(_valueBytes.length == 1);
+
+        for(uint i = _offset; i < _baseBytes.length; i++) {
+            if (_baseBytes[i] == _valueBytes[0]) {
+                return int(i);
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Length
+     * 
+     * Returns the length of the specified string
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *              otherwise this is the string to be measured
+     * @return uint The length of the passed string
+     */
+    function length(string _base) pure internal returns (uint) {
+        bytes memory _baseBytes = bytes(_base);
+        return _baseBytes.length;
+    }
+
+    /**
+     * Sub String
+     * 
+     * Extracts the beginning part of a string based on the desired length
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *              otherwise this is the string that will be used for 
+     *              extracting the sub string from
+     * @param _length The length of the sub string to be extracted from the base
+     * @return string The extracted sub string
+     */
+    function substring(string _base, int _length) pure internal returns (string) {
+        return _substring(_base, _length, 0);
+    }
+
+    /**
+     * Sub String
+     * 
+     * Extracts the part of a string based on the desired length and offset. The
+     * offset and length must not exceed the lenth of the base string.
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *              otherwise this is the string that will be used for 
+     *              extracting the sub string from
+     * @param _length The length of the sub string to be extracted from the base
+     * @param _offset The starting point to extract the sub string from
+     * @return string The extracted sub string
+     */
+    function _substring(string _base, int _length, int _offset) pure internal returns (string) {
+        bytes memory _baseBytes = bytes(_base);
+
+        assert(uint(_offset+_length) <= _baseBytes.length);
+
+        string memory _tmp = new string(uint(_length));
+        bytes memory _tmpBytes = bytes(_tmp);
+
+        uint j = 0;
+        for(uint i = uint(_offset); i < uint(_offset+_length); i++) {
+          _tmpBytes[j++] = _baseBytes[i];
+        }
+
+        return string(_tmpBytes);
+    }
+
+    /**
+     * String Split (Very high gas cost)
+     *
+     * Splits a string into an array of strings based off the delimiter value.
+     * Please note this can be quite a gas expensive function due to the use of
+     * storage so only use if really required.
+     *
+     * @param _base When being used for a data type this is the extended object
+     *               otherwise this is the string value to be split.
+     * @param _value The delimiter to split the string on which must be a single
+     *               character
+     * @return string[] An array of values split based off the delimiter, but
+     *                  do not container the delimiter.
+     */
+    function split(string _base, string _value)
+        internal
+        returns (string[] storage splitArr) {
+        bytes memory _baseBytes = bytes(_base);
+        uint _offset = 0;
+
+        while(_offset < _baseBytes.length-1) {
+
+            int _limit = _indexOf(_base, _value, _offset);
+            if (_limit == -1) {
+                _limit = int(_baseBytes.length);
+            }
+
+            string memory _tmp = new string(uint(_limit)-_offset);
+            bytes memory _tmpBytes = bytes(_tmp);
+
+            uint j = 0;
+            for(uint i = _offset; i < uint(_limit); i++) {
+                _tmpBytes[j++] = _baseBytes[i];
+            }
+            _offset = uint(_limit) + 1;
+            splitArr.push(string(_tmpBytes));
+        }
+        return splitArr;
+    }
+
+    /**
+     * Compare To
+     * 
+     * Compares the characters of two strings, to ensure that they have an 
+     * identical footprint
+     * 
+     * @param _base When being used for a data type this is the extended object
+     *               otherwise this is the string base to compare against
+     * @param _value The string the base is being compared to
+     * @return bool Simply notates if the two string have an equivalent
+     */
+    function compareTo(string _base, string _value) pure internal returns (bool) {
+        bytes memory _baseBytes = bytes(_base);
+        bytes memory _valueBytes = bytes(_value);
+
+        if (_baseBytes.length != _valueBytes.length) {
+            return false;
+        }
+
+        for(uint i = 0; i < _baseBytes.length; i++) {
+            if (_baseBytes[i] != _valueBytes[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+}
+
