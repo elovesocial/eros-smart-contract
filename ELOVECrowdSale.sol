@@ -41,7 +41,7 @@ contract Owned {
     }
     
     // version of this smart contract
-    string public version = "1.0";
+    string public version = "1.3";
     
     address public owner;
     address public newOwner;
@@ -135,7 +135,7 @@ contract ELOVEToken is ERC20Interface, Owned {
     
     uint[4] public roundEnd;
     uint[4] public roundTokenLeft;
-    uint[4] public roundDiscount;
+    uint[4] public roundBonus;
     
     uint public tokenLockTime;
     bool icoEnded = false;
@@ -157,13 +157,13 @@ contract ELOVEToken is ERC20Interface, Owned {
         icoStartDate            = 1518566401;   // 2018/02/14 00:00:01 AM
         
         // Ending time for each round
-        // pre-ICO round 1 : ends 28/02/2018, 10M tokens limit, 40% discount
-        // pre-ICO round 2 : ends 15/03/2018, 10M tokens limit, 30% discount
-        // crowdsale round 1 : ends 15/04/2018, 30M tokens limit, 10% discount
-        // crowdsale round 2 : ends 30/04/2018, 30M tokens limit, 0% discount
+        // pre-ICO round 1 : ends 28/02/2018, 10M tokens limit, 40% bonus
+        // pre-ICO round 2 : ends 15/03/2018, 10M tokens limit, 30% bonus
+        // crowdsale round 1 : ends 15/04/2018, 30M tokens limit, 10% bonus
+        // crowdsale round 2 : ends 30/04/2018, 30M tokens limit, 0% bonus
         roundEnd = [1519862400, 1521158400, 1523836800, 1525132800];
         roundTokenLeft = [1000000000, 1000000000, 3000000000, 3000000000];
-        roundDiscount = [40, 30, 10, 0];
+        roundBonus = [40, 30, 10, 0];
         
         // Time to lock all ERC20 transfer 
         tokenLockTime = 1572566400;     // 2019/11/01 after 18 months
@@ -180,6 +180,7 @@ contract ELOVEToken is ERC20Interface, Owned {
         } else {
             require(newTime<roundEnd[1]);
         }
+
         roundEnd[round] = newTime;
         return true;
     }
@@ -259,8 +260,8 @@ contract ELOVEToken is ERC20Interface, Owned {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
+        require(icoEnded);
         require(!founders[from] && investors[mapInvestors[from]-1].kyced);
-        
         balances[from] = balances[from].sub(tokens);
         allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
         balances[to] = balances[to].add(tokens);
@@ -292,7 +293,8 @@ contract ELOVEToken is ERC20Interface, Owned {
         // Token left for each round must be greater than 0
         require(roundTokenLeft[round]>0);
         // calculate number of tokens can be bought, given number of ether from sender, with discount rate accordingly
-        var tokenCanBeBought = (10**uint(decimals)*msg.value*etherExRate*100).div(10**18*(100-roundDiscount[round]));
+        //var tokenCanBeBought = (10**uint(decimals)*msg.value*etherExRate*100).div(10**18*(100-roundDiscount[round]));
+        var tokenCanBeBought = (msg.value.div(10**18)*10**uint(decimals)*etherExRate*(100+roundBonus[round])).div(100);
         if (tokenCanBeBought<roundTokenLeft[round]) {
             balances[owner] = balances[owner] - tokenCanBeBought;
             balances[msg.sender] = balances[msg.sender] + tokenCanBeBought;
@@ -306,7 +308,8 @@ contract ELOVEToken is ERC20Interface, Owned {
                 mapInvestors[msg.sender] = ind;
             }
         } else {
-            var neededEtherToBuy = (10**18*roundTokenLeft[round]*(100-roundDiscount[round])).div(10**uint(decimals)*etherExRate*100);
+            //var neededEtherToBuy = (10**18*roundTokenLeft[round]*(100-roundDiscount[round])).div(10**uint(decimals)*etherExRate*100);
+            var neededEtherToBuy = (10**18*roundTokenLeft[round]*100).div(10**uint(decimals)).div(etherExRate*(100+roundBonus[round]));
             balances[owner] = balances[owner] - roundTokenLeft[round];
             balances[msg.sender] = balances[msg.sender] + roundTokenLeft[round];
             roundTokenLeft[round] = 0;
