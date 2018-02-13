@@ -41,10 +41,11 @@ contract Owned {
     }
     
     // version of this smart contract
-    string public version = "1.3";
+    string public version = "1.4";
     
     address public owner;
     address public newOwner;
+    address public rewardPoolWallet;
     
     // List of investors with invested amount in ETH
     Investor[] public investors;
@@ -79,6 +80,11 @@ contract Owned {
                 investors[mapInvestors[listInvestors[i].parseAddr()]-1].kyced = kycStatus;
             }
         }
+    }
+    
+    function setRewardPoolWallet(address rewardWallet) onlyOwner public returns(bool success) {
+        rewardPoolWallet = rewardWallet;
+        return true;
     }
     
     function isExistInvestor(address inv) public constant returns (bool exist) {
@@ -182,6 +188,11 @@ contract ELOVEToken is ERC20Interface, Owned {
         }
 
         roundEnd[round] = newTime;
+        return true;
+    }
+    
+    function setSoftCap(uint newSoftCap) onlyOwner public returns (bool success) {
+        softcap = newSoftCap;
         return true;
     }
     
@@ -353,10 +364,11 @@ contract ELOVEToken is ERC20Interface, Owned {
                     investors[i].sender.transfer(investors[i].amount);
                 }
             } else {
-                // burn un-sold tokens
+                // send un-sold tokens to reward address
+                require(rewardPoolWallet != address(0));
                 uint sumToBurn = roundTokenLeft[0] + roundTokenLeft[1] + roundTokenLeft[2] + roundTokenLeft[3];
                 balances[owner] = balances[owner] - sumToBurn;
-                _totalSupply = _totalSupply - sumToBurn;
+                balances[rewardPoolWallet] += sumToBurn;
                 
                 roundTokenLeft[0] = roundTokenLeft[1] = roundTokenLeft[2] = roundTokenLeft[3] = 0;
             }
