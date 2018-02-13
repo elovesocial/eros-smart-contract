@@ -171,7 +171,6 @@ contract ELOVEToken is ERC20Interface, Owned {
         Transfer(address(0), owner, _totalSupply);
     }
 
-    // 
     function setRoundEnd(uint round, uint newTime) onlyOwner public returns (bool success)  {
         require(now<newTime);
         if (round>0) {
