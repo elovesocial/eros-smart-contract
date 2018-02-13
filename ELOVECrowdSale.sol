@@ -39,7 +39,7 @@ contract Owned {
     }
     
     // version of this smart contract
-    string public version = "1.5";
+    string public version = "1.8";
     
     address public owner;
     address public newOwner;
@@ -119,7 +119,7 @@ contract ELOVEToken is ERC20Interface, Owned {
     uint8 public decimals;
     uint public _totalSupply;
     
-    uint minInvest = 1 ether;
+    uint minInvest = 0.5 ether;
     uint maxInvest = 500 ether;
     
     uint softcap = 5000 ether;
@@ -134,6 +134,7 @@ contract ELOVEToken is ERC20Interface, Owned {
     uint public tokenLockTime;
     uint public tokenFounderLockTime;
     bool icoEnded = false;
+    bool kycCompleted = false;
     
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
@@ -187,6 +188,19 @@ contract ELOVEToken is ERC20Interface, Owned {
         return true;
     }
     
+    // refund ETH to non-KYCed investors
+    function refundNonKYCInvestor() onlyOwner public returns (bool success) {
+        require(!kycCompleted);
+        for(uint i = 0; i<investors.length; i++) {
+            if (!investors[i].kyced) {
+                investors[i].sender.transfer(investors[i].amount);    
+                investors[i].amount = 0;
+            }
+        }
+        kycCompleted = true;
+        return true;
+    }
+    
     function setSoftCap(uint newSoftCap) onlyOwner public returns (bool success) {
         softcap = newSoftCap;
         return true;
@@ -234,7 +248,7 @@ contract ELOVEToken is ERC20Interface, Owned {
         // either
         // - is founder and current time > tokenFounderLockTime
         // - is not founder but is rewardPoolWallet or sender was kyc-ed
-        require((founders[msg.sender] && now>tokenFounderLockTime) || (!founders[msg.sender] && (msg.sender == rewardPoolWallet || investors[mapInvestors[msg.sender]-1].kyced)));
+        require((founders[msg.sender] && now>tokenFounderLockTime) || (!founders[msg.sender] && (msg.sender == rewardPoolWallet || mapInvestors[msg.sender] == 0 || investors[mapInvestors[msg.sender]-1].kyced)));
         // sender either is owner or recipient is not 0x0 address
         require(msg.sender == owner || to != 0x0);
         
@@ -306,7 +320,6 @@ contract ELOVEToken is ERC20Interface, Owned {
         // Token left for each round must be greater than 0
         require(roundTokenLeft[round]>0);
         // calculate number of tokens can be bought, given number of ether from sender, with discount rate accordingly
-        //var tokenCanBeBought = (10**uint(decimals)*msg.value*etherExRate*100).div(10**18*(100-roundDiscount[round]));
         var tokenCanBeBought = (msg.value.div(10**18)*10**uint(decimals)*etherExRate*(100+roundBonus[round])).div(100);
         if (tokenCanBeBought<roundTokenLeft[round]) {
             balances[owner] = balances[owner] - tokenCanBeBought;
