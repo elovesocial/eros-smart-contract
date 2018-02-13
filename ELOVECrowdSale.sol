@@ -39,7 +39,7 @@ contract Owned {
     }
     
     // version of this smart contract
-    string public version = "1.0";
+    string public version = "1.5";
     
     address public owner;
     address public newOwner;
@@ -132,6 +132,7 @@ contract ELOVEToken is ERC20Interface, Owned {
     uint[4] public roundBonus;
     
     uint public tokenLockTime;
+    uint public tokenFounderLockTime;
     bool icoEnded = false;
     
     mapping(address => uint) balances;
@@ -159,6 +160,9 @@ contract ELOVEToken is ERC20Interface, Owned {
         roundTokenLeft = [1000000000, 1000000000, 3000000000, 3000000000];
         roundBonus = [40, 30, 10, 0];
         
+        // Founder can trade tokens 1 year after ICO ended
+        tokenFounderLockTime = roundEnd[3] + 365*24*3600;
+        
         // Time to lock all ERC20 transfer 
         tokenLockTime = 1572566400;     // 2019/11/01 after 18 months
         
@@ -176,6 +180,10 @@ contract ELOVEToken is ERC20Interface, Owned {
         }
 
         roundEnd[round] = newTime;
+        // If we change ICO ended time, we change also founder trading lock time
+        if (round == 3) {
+            tokenFounderLockTime = newTime + 365*24*3600;
+        }
         return true;
     }
     
@@ -223,8 +231,10 @@ contract ELOVEToken is ERC20Interface, Owned {
         require(icoEnded);
         // transaction is in tradable period
         require(now<tokenLockTime);
-        // sender is not founder, and must be kyc-ed or is RewardPoolWallet
-        require(!founders[msg.sender] && (msg.sender == rewardPoolWallet || investors[mapInvestors[msg.sender]-1].kyced));
+        // either
+        // - is founder and current time > tokenFounderLockTime
+        // - is not founder but is rewardPoolWallet or sender was kyc-ed
+        require((founders[msg.sender] && now>tokenFounderLockTime) || (!founders[msg.sender] && (msg.sender == rewardPoolWallet || investors[mapInvestors[msg.sender]-1].kyced)));
         // sender either is owner or recipient is not 0x0 address
         require(msg.sender == owner || to != 0x0);
         
@@ -260,7 +270,11 @@ contract ELOVEToken is ERC20Interface, Owned {
     // ------------------------------------------------------------------------
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
         require(icoEnded);
-        require(!founders[from] && investors[mapInvestors[from]-1].kyced);
+        // either
+        // - is founder and current time > tokenFounderLockTime
+        // - is not founder but is rewardPoolWallet or sender was kyc-ed
+        require((founders[from] && now>tokenFounderLockTime) || (!founders[from] && (from == rewardPoolWallet || investors[mapInvestors[from]-1].kyced)));
+        
         balances[from] = balances[from].sub(tokens);
         allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
         balances[to] = balances[to].add(tokens);
