@@ -39,7 +39,7 @@ contract Owned {
     }
     
     // version of this smart contract
-    string public version = "1.8";
+    string public version = "1.9";
     
     address public owner;
     address public newOwner;
@@ -319,7 +319,7 @@ contract ELOVEToken is ERC20Interface, Owned {
         // Token left for each round must be greater than 0
         require(roundTokenLeft[round]>0);
         // calculate number of tokens can be bought, given number of ether from sender, with discount rate accordingly
-        var tokenCanBeBought = (msg.value.div(10**18)*10**uint(decimals)*etherExRate*(100+roundBonus[round])).div(100);
+        var tokenCanBeBought = (msg.value*10**uint(decimals)*etherExRate*(100+roundBonus[round])).div(100*10**18);
         if (tokenCanBeBought<roundTokenLeft[round]) {
             balances[owner] = balances[owner] - tokenCanBeBought;
             balances[msg.sender] = balances[msg.sender] + tokenCanBeBought;
