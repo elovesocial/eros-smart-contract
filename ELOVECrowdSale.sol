@@ -53,6 +53,7 @@ contract Owned {
     mapping(address => bool) public founders;
     
     event OwnershipTransferred(address indexed _from, address indexed _to);
+    event TranferETH(address indexed _to, uint amount);
 
     function Owned() public {
         owner = msg.sender;
@@ -378,6 +379,7 @@ contract ELOVEToken is ERC20Interface, Owned {
                 // time to send back funds to investors
                 for(uint i = 0; i<investors.length; i++) {
                     investors[i].sender.transfer(investors[i].amount);
+                    TranferETH(investors[i].sender, investors[i].amount);
                 }
             } else {
                 // send un-sold tokens to reward address
@@ -386,11 +388,14 @@ contract ELOVEToken is ERC20Interface, Owned {
                 balances[owner] = balances[owner] - sumToBurn;
                 balances[rewardPoolWallet] += sumToBurn;
                 
+                Transfer(owner, rewardPoolWallet, sumToBurn);
+                
                 roundTokenLeft[0] = roundTokenLeft[1] = roundTokenLeft[2] = roundTokenLeft[3] = 0;
             }
             
             // give back ETH to sender
             msg.sender.transfer(msg.value);
+            TranferETH(msg.sender, msg.value);
             icoEnded = true;
         }
     }
@@ -398,6 +403,7 @@ contract ELOVEToken is ERC20Interface, Owned {
     function withdrawEtherToOwner() onlyOwner public {   
         require(now>roundEnd[3] && this.balance>softcap);
         owner.transfer(this.balance);
+        TranferETH(owner, this.balance);
     }
 
     // ------------------------------------------------------------------------
