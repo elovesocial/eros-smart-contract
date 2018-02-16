@@ -39,7 +39,7 @@ contract Owned {
     }
     
     // version of this smart contract
-    string public version = "1.9";
+    string public version = "1.10";
     
     address public owner;
     address public newOwner;
@@ -325,6 +325,8 @@ contract ELOVEToken is ERC20Interface, Owned {
             balances[msg.sender] = balances[msg.sender] + tokenCanBeBought;
             roundTokenLeft[round] = roundTokenLeft[round]-tokenCanBeBought;
             
+            Transfer(owner, msg.sender, tokenCanBeBought);
+            
             if (mapInvestors[msg.sender] > 0) {
                 // if investors already existed, add amount to the invested sum
                 investors[mapInvestors[msg.sender]-1].amount += msg.value;
@@ -337,6 +339,8 @@ contract ELOVEToken is ERC20Interface, Owned {
             balances[owner] = balances[owner] - roundTokenLeft[round];
             balances[msg.sender] = balances[msg.sender] + roundTokenLeft[round];
             roundTokenLeft[round] = 0;
+            
+            Transfer(owner, msg.sender, roundTokenLeft[round]);
             
             if (mapInvestors[msg.sender] > 0) {
                 // if investors already existed, add amount to the invested sum
